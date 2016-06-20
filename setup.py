@@ -3,7 +3,7 @@ import sys
 from setuptools import setup
 
 install_requires = [
-    'mysql-python>=1.2.3', 
+    'mysql-python>=1.2.5',
     'psycopg2>=2.4.2',
     'pyyaml>=3.10.0',
     'pytz',
@@ -19,7 +19,7 @@ if version < (2,7) or (3,0) <= version <= (3,1):
 
 setup(
     name='py-mysql2pgsql',
-    version='0.1.6',
+    version='0.1.7b',
     description='Tool for migrating/converting from mysql to postgresql.',
     long_description=open('README.rst').read(),
     license='MIT License',
