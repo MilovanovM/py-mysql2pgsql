@@ -1,11 +1,22 @@
 from __future__ import absolute_import
 
+import hashlib
 import re
 from cStringIO import StringIO
 from datetime import datetime, date, timedelta
-
 from psycopg2.extensions import QuotedString, Binary, AsIs
 from pytz import timezone
+
+
+MAX_NAME_LEN = 63
+
+
+def adapt_name(name):
+    if len(name) <= MAX_NAME_LEN:
+        return name 
+    h = hashlib.md5()
+    h.update(name)
+    return '%s_%s' % (name[:MAX_NAME_LEN-7], h.hexdigest()[:6])
 
 
 class PostgresWriter(object):
@@ -247,17 +258,19 @@ class PostgresWriter(object):
         primary_index = [idx for idx in table.indexes if idx.get('primary', None)]
         index_prefix = self.index_prefix
         if primary_index:
-            index_sql.append('ALTER TABLE "%(table_name)s" ADD CONSTRAINT "%(index_name)s_pkey" PRIMARY KEY(%(column_names)s);' % {
+            index_name = adapt_name(
+                '%s%s_pkey_%s' % (index_prefix, table.name, '_'.join(primary_index[0]['columns'])),
+            )
+            index_sql.append('ALTER TABLE "%(table_name)s" ADD CONSTRAINT "%(index_name)s" PRIMARY KEY(%(column_names)s);' % {
                     'table_name': table.name,
-                    'index_name': '%s%s_%s' % (index_prefix, table.name, 
-                                        '_'.join(primary_index[0]['columns'])),
+                    'index_name': index_name,
                     'column_names': ', '.join('"%s"' % col for col in primary_index[0]['columns']),
                     })
         for index in table.indexes:
             if 'primary' in index:
                 continue
             unique = 'UNIQUE ' if index.get('unique', None) else ''
-            index_name = '%s%s_%s' % (index_prefix, table.name, '_'.join(index['columns']))
+            index_name = adapt_name('%s%s_%s' % (index_prefix, table.name, '_'.join(index['columns'])))
             index_sql.append('DROP INDEX IF EXISTS "%s" CASCADE;' % index_name)
             index_sql.append('CREATE %(unique)sINDEX "%(index_name)s" ON "%(table_name)s" (%(column_names)s);' % {
                     'unique': unique,
